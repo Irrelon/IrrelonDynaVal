@@ -1,5 +1,5 @@
 #pragma once
-#include "DynaVal.h"
+#include "../DynaVal.h"
 
 inline DynaVal& dynaPathGet(DynaVal& obj, const std::string& path) {
 	DynaVal* current = &obj;

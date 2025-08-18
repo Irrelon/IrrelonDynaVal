@@ -9,7 +9,7 @@
 #include <vector>
 #include "allocator.h"
 #include "DynaError.h"
-#include "DynaValType.h"
+#include "../DynaValType.h"
 
 struct DynaVal;
 

@@ -5,7 +5,7 @@
 #include <cstdio>
 #endif
 
-#include "DynaVal.h"
+#include "../DynaVal.h"
 
 // Buffer size for serializing JSON values
 #define JSON_LOG_BUFFER_SIZE 2048
