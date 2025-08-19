@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include "allocator.h"
+#include <Irrelon/PSRAMAllocator.h>
 #include "DynaError.h"
 #include "DynaValType.h"
 
@@ -833,6 +833,8 @@ namespace Irrelon {
 					return DynaVal(numberUnsignedInteger);
 				case DynaValType::Float:
 					return DynaVal(numberFloat);
+				case DynaValType::Double:
+					return DynaVal(numberDouble);
 				case DynaValType::Bool:
 					return DynaVal(boolean);
 				case DynaValType::String:
