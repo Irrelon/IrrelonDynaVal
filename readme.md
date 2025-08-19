@@ -12,7 +12,7 @@ This dynamic container uses PSRAM on ESP32. It has not been tested on other plat
 ## Assigning Data
 ```c++
 // Define a DynaVal
-DynaVal myObj = DynaVal.becomeObject();
+DynaVal myObj = Irrelon::DynaVal.becomeObject();
 myObj["someKey1"] = 13;
 myObj["someKey2"] = true;
 myObj["someKey3"] = "Hello";
