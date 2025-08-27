@@ -1,153 +1,184 @@
+// dyna_log.h
 #pragma once
-#ifdef ARDUINO
-#include <Arduino.h>
-#else
-#include <cstdio>
+
+// -------- Configuration --------
+// Define FMT_HEADER_ONLY before including <fmt/...> to avoid linking a .cpp.
+#ifndef FMT_HEADER_ONLY
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
 #endif
-#include <cstdarg>
-#include <string>
-#include <utility>   // std::forward
+
 #include "DynaVal.h"
 
+// Change these if you want different defaults.
+#ifndef IRRELON_LOG_PREFIX
+#define IRRELON_LOG_PREFIX "[LOG] "
+#endif
+
+#ifndef IRRELON_LOG_INDENT_CHAR
+#define IRRELON_LOG_INDENT_CHAR '\t'
+#endif
+
+#include <string>
+#include <string_view>
+#include <utility>
+   // core formatting
+
 namespace Irrelon {
+	// ---- State ----
 	inline bool dynaLogIsEnabled = true;
 	inline int dynaLogIndentLevel = 0;
 
-	inline std::string dynaValLogGetIndentString(const char indentChar = '\t') {
-		return std::string(dynaLogIndentLevel, indentChar);
+	// ---- Utilities ----
+	inline std::string dynaLogIndentString(char indentChar = IRRELON_LOG_INDENT_CHAR) {
+		if (dynaLogIndentLevel <= 0) return {};
+		return std::string(static_cast<size_t>(dynaLogIndentLevel), indentChar);
 	}
 
-	// ---------- internal helpers ----------
+	// Low-level sink: write bytes to console/serial *without* interpreting format tokens.
+	inline void dynaLogWriteSink(std::string_view s) {
+#ifdef ARDUINO
+		// On Arduino cores, Serial may not be initialized automatically.
+		// Ensure Serial.begin(...) elsewhere before logging.
+		for (char c: s) { Serial.print(c); }
+#else
+		(void) fwrite(s.data(), 1, s.size(), stdout);
+#endif
+	}
 
-	// Format using va_list onto heap-backed std::string (no stack buffers).
-	inline std::string vformatString(const char *fmt, va_list ap_in) {
-		if (!fmt) return {};
+	// ---- Core output function (everything funnels here) ----
+	// Writes a single line (with or without trailing newline), including indent and prefix.
+	inline void dynaLogOutputRaw(std::string_view msg, bool add_newline = true, bool annotate = true, bool indent = true) {
+		// Build the final line once to minimize I/O calls.
+		std::string out;
+		out.reserve(dynaLogIndentLevel + sizeof(IRRELON_LOG_PREFIX) + msg.size() + 1);
 
-		va_list ap1;
-		va_list ap2;
-		va_copy(ap1, ap_in);
-		va_copy(ap2, ap_in);
-
-		// Measure
-		int needed = vsnprintf(nullptr, 0, fmt, ap1);
-		va_end(ap1);
-		if (needed <= 0) {
-			va_end(ap2);
-			return {};
+		if (indent) {
+			fmt::format_to(std::back_inserter(out), "{}", dynaLogIndentString());
 		}
 
-		// Render
-		std::string out;
-		out.resize(static_cast<size_t>(needed)); // no +1; we'll write N bytes
-		vsnprintf(out.data(), static_cast<size_t>(needed) + 1, fmt, ap2);
-		va_end(ap2);
+		if (annotate) {
+			fmt::format_to(std::back_inserter(out), "{}", IRRELON_LOG_PREFIX);
+		}
 
-		return out;
+		// indent + prefix + msg + optional '\n'
+		fmt::format_to(std::back_inserter(out), "{}", msg);
+
+		if (add_newline) out.push_back('\n');
+
+		dynaLogWriteSink(out);
 	}
 
-	// Variadic formatter (non-va_list) – also heap-backed.
+	namespace detail {
+		inline void append_piece(std::string& out, const char* s)        { if (s) out.append(s); }
+		inline void append_piece(std::string& out, const std::string& s) { out.append(s); }
+		inline void append_piece(std::string& out, char c)               { out.push_back(c); }
+		inline void append_piece(std::string& out, bool b)               { out.append(b ? "true" : "false"); }
+		inline void append_piece(std::string& out, int v)                { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, unsigned v)           { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, long v)               { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, unsigned long v)      { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, long long v)          { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, unsigned long long v) { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, float v)              { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, double v)             { out.append(std::to_string(v)); }
+		inline void append_piece(std::string& out, const DynaVal& v)     { out.append(v.toJson()); }
+
+		template<typename T>
+		inline void append_piece(std::string& out, const T& t) { out.append(std::to_string(t)); } // fallback if needed
+	}
+
 	template<typename... Args>
-	inline std::string formatString(const char *fmt, Args &&... args) {
-		if (!fmt) return {};
-
-		// First pass: measure
-		int needed = snprintf(nullptr, 0, fmt, std::forward<Args>(args)...);
-		if (needed <= 0) return {};
-
-		// Second pass: render
-		std::string out;
-		out.resize(static_cast<size_t>(needed));
-		snprintf(out.data(), static_cast<size_t>(needed) + 1, fmt, std::forward<Args>(args)...);
-		return out;
-	}
-
-	// Write a whole line with prefix safely (no format interpretation of message).
-	inline void writeLogLine(const std::string &msg) {
-#ifdef ARDUINO
-		Serial.print(dynaValLogGetIndentString().c_str());
-		Serial.print("[LOG] ");
-		Serial.print(msg.c_str());
-		Serial.print('\n');
-#else
-		fputs(dynaValLogGetIndentString().c_str(), stdout);
-		fputs("[LOG] ", stdout);
-		fputs(msg.c_str(), stdout);
-		fputc('\n', stdout);
-#endif
-	}
-
-	// Write log without trailing newline (still with prefix).
-	inline void writeLogNoBreak(const std::string &msg) {
-#ifdef ARDUINO
-		Serial.print(dynaValLogGetIndentString().c_str());
-		Serial.print("[LOG] ");
-		Serial.print(msg.c_str());
-#else
-		fputs(dynaValLogGetIndentString().c_str(), stdout);
-		fputs("[LOG] ", stdout);
-		fputs(msg.c_str(), stdout);
-#endif
-	}
-
-	// ---------- public API (same names as yours) ----------
-
-	inline void dynaLogImplementation(const char *format, va_list args) {
-		// NOTE: no stack buffers, no printf(format-as-message)
-		std::string rendered = vformatString(format, args);
-		writeLogLine(rendered);
-	}
-
-	inline void dynaLogForce(const char *format, ...) {
-		va_list args;
-		va_start(args, format);
-		std::string rendered = vformatString(format, args);
-		va_end(args);
-		writeLogLine(rendered);
-	}
-
-	inline void dynaLogLn(const char *format, const DynaVal &value) {
+	inline void dynaLogJoin(Args&&... args) {
 		if (!dynaLogIsEnabled) return;
-
-		// Avoid large stack temporaries; build combined line on heap
-		std::string left = formatString("%s", format ? format : "");
-		std::string right = value.toJson(); // assume returns std::string
-		writeLogLine(left + " " + right);
+		std::string msg;
+		msg.reserve(256);
+		(detail::append_piece(msg, std::forward<Args>(args)), ...);
+		dynaLogOutputRaw(msg);
 	}
 
-	inline void dynaLogLn(const char *format, ...) {
+	inline void dynaLogLn(fmt::format_string<std::string_view> fmtstr, const Irrelon::DynaVal& v) {
 		if (!dynaLogIsEnabled) return;
-		va_list args;
-		va_start(args, format);
-		std::string rendered = vformatString(format, args);
-		va_end(args);
-		writeLogLine(rendered);
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), true);
 	}
 
-	// Standard logging with newline.
-	template<typename... Args>
-	inline void dynaLog(const char *format, Args &&... args) {
+	inline void dynaLogLn(fmt::format_string<std::string_view> fmtstr, Irrelon::DynaVal& v) {
 		if (!dynaLogIsEnabled) return;
-		std::string rendered = formatString(format, std::forward<Args>(args)...);
-		writeLogLine(rendered);
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), true);
 	}
 
-	// Standard logging without newline (keeps [LOG] prefix).
-	template<typename... Args>
-	inline void dynaLogNoBreak(const char *format, Args &&... args) {
+	// optional no-newline
+	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, const Irrelon::DynaVal& v) {
 		if (!dynaLogIsEnabled) return;
-		std::string rendered = formatString(format, std::forward<Args>(args)...);
-		writeLogNoBreak(rendered);
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false, false, false);
 	}
 
-	inline void dynaLogBreak() {
+	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, Irrelon::DynaVal& v) {
 		if (!dynaLogIsEnabled) return;
-#ifdef ARDUINO
-		Serial.print('\n');
-#else
-		fputc('\n', stdout);
-#endif
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false);
 	}
 
+	// ---- Public API: println-style ----
+	template<class... Args>
+	inline void dynaLogLn(fmt::format_string<Args...> fmtstr, Args &&... args) {
+		if (!dynaLogIsEnabled) return;
+		// Type-safe formatting; compile-time checked against fmtstr.
+		const std::string line = fmt::format(fmtstr, std::forward<Args>(args)...);
+		dynaLogOutputRaw(line, /*add_newline*/ true);
+	}
+
+	// Raw message (no formatting interpretation)
+	inline void dynaLogLn(std::string_view msg) {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw(msg, /*add_newline*/ true);
+	}
+
+	inline void dynaLogLn(const char *cstr) {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw(cstr ? std::string_view{cstr} : std::string_view{}, /*add_newline*/ true);
+	}
+
+	// ---- Public API: print-without-newline ----
+	template<class... Args>
+	inline void dynaLog(fmt::format_string<Args...> fmtstr, Args &&... args) {
+		if (!dynaLogIsEnabled) return;
+		const std::string chunk = fmt::format(fmtstr, std::forward<Args>(args)...);
+		dynaLogOutputRaw(chunk, /*add_newline*/ false);
+	}
+
+	// Raw (no formatting)
+	inline void dynaLog(std::string_view msg) {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw(msg, /*add_newline*/ false);
+	}
+
+	inline void dynaLog(const char *cstr) {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw(cstr ? std::string_view{cstr} : std::string_view{}, /*add_newline*/ false);
+	}
+
+	inline void dynaLogPrintIndent() {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw("", false, false, true);
+	}
+
+	inline void dynaLogPrintAnnotate() {
+		if (!dynaLogIsEnabled) return;
+		dynaLogOutputRaw("", false, true, false);
+	}
+
+	template<class... Args>
+	inline void dynaLogForce(fmt::format_string<Args...> fmtstr, Args &&... args) {
+		// Type-safe formatting; compile-time checked against fmtstr.
+		const std::string line = fmt::format(fmtstr, std::forward<Args>(args)...);
+		dynaLogOutputRaw(line, /*add_newline*/ true);
+	}
+
+	// ---- Controls ----
 	inline void dynaLogEnabled(bool enable) { dynaLogIsEnabled = enable; }
 	inline void dynaLogOn() { dynaLogIsEnabled = true; }
 	inline void dynaLogOff() { dynaLogIsEnabled = false; }

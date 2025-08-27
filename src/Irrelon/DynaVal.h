@@ -23,10 +23,7 @@ namespace Irrelon {
 		bool frozen = false;
 		bool solid = false;
 		DynaValType type = DynaValType::Null;
-		float numberFloat = 0.0f;
-		double numberDouble = 0.0f;
-		int numberInteger = 0;
-		u_int numberUnsignedInteger = 0;
+		double number = 0.0f;
 		bool boolean = false;
 		std::string string;
 		std::shared_ptr<DynaValArray> array;
@@ -37,9 +34,7 @@ namespace Irrelon {
 		: frozen(false),
 		  solid(false),
 		  type(DynaValType::Null),
-		  numberFloat(0),
-		  numberInteger(0),
-		  numberUnsignedInteger(0),
+		  number(0.0f),
 		  boolean(false),
 		  string(),
 		  array(nullptr),
@@ -50,9 +45,7 @@ namespace Irrelon {
 		: frozen(other.frozen),
 		  solid(other.solid),
 		  type(other.type),
-		  numberFloat(other.numberFloat),
-		  numberInteger(other.numberInteger),
-		  numberUnsignedInteger(other.numberUnsignedInteger),
+		  number(other.number),
 		  boolean(other.boolean),
 		  string(other.string),
 		  array(other.array),
@@ -62,9 +55,7 @@ namespace Irrelon {
 		DynaVal &operator= (const DynaVal &other) {
 			if (this != &other) {
 				type = other.type;
-				numberFloat = other.numberFloat;
-				numberInteger = other.numberInteger;
-				numberUnsignedInteger = other.numberUnsignedInteger;
+				number = other.number;
 				boolean = other.boolean;
 				string = other.string;
 				array = other.array;
@@ -95,32 +86,24 @@ namespace Irrelon {
 			}
 		}
 
-		// Catch all integral types except the u_ints: int, size_t, int8_t etc.
-		template <
-		typename T,
-		typename = std::enable_if_t<
-				std::is_integral_v<T> &&
-				!std::is_same_v<T, uint8_t> &&
-				!std::is_same_v<T, uint16_t> &&
-				!std::is_same_v<T, uint32_t>
-			>
-		>
-		DynaVal (T n) : type(DynaValType::Float), numberFloat(static_cast<float>(n)) {}
-
 		// Float
-		DynaVal (const float num) : type(DynaValType::Float), numberFloat(num) {}
-
-		// Double
-		DynaVal (const double num) : type(DynaValType::Double), numberDouble(num) {}
+		DynaVal (const float num) : type(DynaValType::Float), number(static_cast<double>(num)) {}
 
 		// Int
-		DynaVal (const int num) : type(DynaValType::Int), numberInteger(num) {}
+		DynaVal (const int8_t num) : type(DynaValType::Int), number(static_cast<double>(num)) {}
+		DynaVal (const int16_t num) : type(DynaValType::Int), number(static_cast<double>(num)) {}
+		DynaVal (const int32_t num) : type(DynaValType::Int), number(static_cast<double>(num)) {}
 
-		// Uint
-		DynaVal (const uint8_t num) : type(DynaValType::Uint), numberUnsignedInteger(num) {}
-		DynaVal (const uint16_t num) : type(DynaValType::Uint), numberUnsignedInteger(num) {}
-		DynaVal (const uint32_t num) : type(DynaValType::Uint), numberUnsignedInteger(num) {}
-		DynaVal (const uint64_t num) : type(DynaValType::Uint), numberUnsignedInteger(num) {}
+		// UInt
+		DynaVal (const uint8_t num) : type(DynaValType::UInt), number(static_cast<double>(num)) {}
+		DynaVal (const uint16_t num) : type(DynaValType::UInt), number(static_cast<double>(num)) {}
+		DynaVal (const uint32_t num) : type(DynaValType::UInt), number(static_cast<double>(num)) {}
+
+		// Double
+		DynaVal (const double num) : type(DynaValType::Double), number(static_cast<double>(num)) {}
+
+		// Long
+		DynaVal (const long num) : type(DynaValType::Long), number(static_cast<double>(num)) {}
 
 		// Bool
 		DynaVal (const bool b) : type(DynaValType::Bool), boolean(b) {}
@@ -138,70 +121,48 @@ namespace Irrelon {
 		// Helper accessors
 		[[nodiscard]] const DynaError &toError () const { return *errorData; }
 
+		[[nodiscard]] double toNumber () const {
+			return number;
+		}
+
 		[[nodiscard]] float toFloat (const bool looseType = false) const {
-			if (looseType) {
-				if (type == DynaValType::Float) {
-					return numberFloat;
-				}
-
-				if (type == DynaValType::Int) {
-					return static_cast<float>(numberInteger);
-				}
-
-				if (type == DynaValType::Uint) {
-					return static_cast<float>(numberUnsignedInteger);
-				}
-
-				if (type == DynaValType::Bool) {
-					return boolean ? 1 : 0;
-				}
+			if (looseType && type == DynaValType::Bool) {
+				return boolean ? 1.0f : 0.0f;
 			}
 
-			return numberFloat;
+			return static_cast<float>(number);
 		}
 
 		[[nodiscard]] int toInt (const bool looseType = false) const {
-			if (looseType) {
-				if (type == DynaValType::Int) {
-					return numberInteger;
-				}
-
-				if (type == DynaValType::Uint) {
-					return static_cast<int>(numberUnsignedInteger);
-				}
-
-				if (type == DynaValType::Float) {
-					return static_cast<int>(numberFloat);
-				}
-
-				if (type == DynaValType::Bool) {
-					return boolean ? 1 : 0;
-				}
+			if (looseType && type == DynaValType::Bool) {
+				return boolean ? 1 : 0;
 			}
 
-			return numberInteger;
+			return static_cast<int>(number);
 		}
 
 		[[nodiscard]] uint toUInt (const bool looseType = false) const {
-			if (looseType) {
-				if (type == DynaValType::Uint) {
-					return numberUnsignedInteger;
-				}
-
-				if (type == DynaValType::Int) {
-					return static_cast<u_int>(numberInteger);
-				}
-
-				if (type == DynaValType::Float) {
-					return static_cast<u_int>(numberFloat);
-				}
-
-				if (type == DynaValType::Bool) {
-					return boolean ? 1 : 0;
-				}
+			if (looseType && type == DynaValType::Bool) {
+				return boolean ? 1 : 0;
 			}
 
-			return numberUnsignedInteger;
+			return static_cast<u_int>(number);
+		}
+
+		[[nodiscard]] double toDouble (const bool looseType = false) const {
+			if (looseType && type == DynaValType::Bool) {
+				return boolean ? 1 : 0;
+			}
+
+			return static_cast<double>(number);
+		}
+
+		[[nodiscard]] long toLong (const bool looseType = false) const {
+			if (looseType && type == DynaValType::Bool) {
+				return boolean ? 1 : 0;
+			}
+
+			return static_cast<long>(number);
 		}
 
 		[[nodiscard]] bool toBool (const bool looseType = false) const {
@@ -213,15 +174,13 @@ namespace Irrelon {
 		}
 
 		[[nodiscard]] std::string toString (const bool interpretArrayData = false) const {
+			if (isNumber()) {
+				return std::to_string(number);
+			}
+
 			switch (type) {
 				case DynaValType::String:
 					return string;
-				case DynaValType::Int:
-					return std::to_string(numberInteger);
-				case DynaValType::Uint:
-					return std::to_string(numberUnsignedInteger);
-				case DynaValType::Float:
-					return std::to_string(numberFloat);
 				case DynaValType::Bool:
 					return boolean
 						? "true"
@@ -267,11 +226,15 @@ namespace Irrelon {
 				case DynaValType::Undefined:
 					return true;
 				case DynaValType::Int:
-					return numberInteger == 0;
-				case DynaValType::Uint:
-					return numberUnsignedInteger == 0;
+					return number == 0;
+				case DynaValType::UInt:
+					return number == 0;
 				case DynaValType::Float:
-					return numberFloat == 0.0f;
+					return number == 0.0f;
+				case DynaValType::Double:
+					return number == 0;
+				case DynaValType::Long:
+					return number == 0;
 				case DynaValType::String:
 					return string.empty();
 				case DynaValType::Array:
@@ -294,19 +257,31 @@ namespace Irrelon {
 
 		[[nodiscard]] bool isFloat () const { return type == DynaValType::Float; }
 
+		[[nodiscard]] bool isNumber () const {
+			return type == DynaValType::Float || type == DynaValType::Int || type == DynaValType::UInt || type == DynaValType::Double || type == DynaValType::Long;
+		}
+
+		[[nodiscard]] bool isDouble (const bool looseType = false) const {
+			if (looseType) {
+				return type == DynaValType::Double || type == DynaValType::Float;
+			}
+
+			return type == DynaValType::Double;
+		}
+
 		[[nodiscard]] bool isInt (const bool looseType = false) const {
 			if (looseType) {
-				return type == DynaValType::Int || type == DynaValType::Uint;
+				return type == DynaValType::Int || type == DynaValType::UInt;
 			}
 
 			return type == DynaValType::Int;
 		}
 		[[nodiscard]] bool isUInt (const bool looseType = false) const {
 			if (looseType) {
-				return type == DynaValType::Uint || type == DynaValType::Int;
+				return type == DynaValType::UInt || (type == DynaValType::Int && number >= 0);
 			}
 
-			return type == DynaValType::Uint;
+			return type == DynaValType::UInt;
 		}
 
 		[[nodiscard]] bool isBool () const { return type == DynaValType::Bool; }
@@ -447,7 +422,7 @@ namespace Irrelon {
 		DynaVal &becomeFloat () {
 			if (type != DynaValType::Float) {
 				type = DynaValType::Float;
-				numberFloat = 0.0f;
+				number = 0.0f;
 			}
 			return *this;
 		}
@@ -455,7 +430,31 @@ namespace Irrelon {
 		DynaVal &becomeInt () {
 			if (type != DynaValType::Int) {
 				type = DynaValType::Int;
-				numberFloat = 0;
+				number = 0;
+			}
+			return *this;
+		}
+
+		DynaVal &becomeUInt () {
+			if (type != DynaValType::UInt) {
+				type = DynaValType::UInt;
+				number = 0;
+			}
+			return *this;
+		}
+
+		DynaVal &becomeDouble () {
+			if (type != DynaValType::Double) {
+				type = DynaValType::Double;
+				number = 0;
+			}
+			return *this;
+		}
+
+		DynaVal &becomeLong () {
+			if (type != DynaValType::Long) {
+				type = DynaValType::Long;
+				number = 0;
 			}
 			return *this;
 		}
@@ -550,31 +549,55 @@ namespace Irrelon {
 
 		DynaVal &set (float val) {
 			type = DynaValType::Float;
-			numberFloat = val;
+			number = val;
 			return *this;
 		}
 
-		DynaVal &set (int val) {
+		DynaVal &set (int8_t val) {
 			type = DynaValType::Int;
-			numberInteger = val;
+			number = val;
+			return *this;
+		}
+
+		DynaVal &set (int16_t val) {
+			type = DynaValType::Int;
+			number = val;
+			return *this;
+		}
+
+		DynaVal &set (int32_t val) {
+			type = DynaValType::Int;
+			number = val;
 			return *this;
 		}
 
 		DynaVal &set (uint8_t val) {
-			type = DynaValType::Uint;
-			numberUnsignedInteger = static_cast<uint>(val);
+			type = DynaValType::UInt;
+			number = static_cast<uint>(val);
 			return *this;
 		}
 
 		DynaVal &set (uint16_t val) {
-			type = DynaValType::Uint;
-			numberUnsignedInteger = static_cast<uint>(val);
+			type = DynaValType::UInt;
+			number = static_cast<uint>(val);
 			return *this;
 		}
 
 		DynaVal &set (uint32_t val) {
-			type = DynaValType::Uint;
-			numberUnsignedInteger = val;
+			type = DynaValType::UInt;
+			number = val;
+			return *this;
+		}
+
+		DynaVal &set (double val) {
+			type = DynaValType::Double;
+			number = val;
+			return *this;
+		}
+
+		DynaVal &set (long val) {
+			type = DynaValType::Long;
+			number = val;
 			return *this;
 		}
 
@@ -636,9 +659,9 @@ namespace Irrelon {
 		DynaVal &set (const DynaVal &other) {
 			reset();
 			type = other.type;
-			numberFloat = other.numberFloat;
-			numberInteger = other.numberInteger;
-			numberUnsignedInteger = other.numberUnsignedInteger;
+			number = other.number;
+			number = other.number;
+			number = other.number;
 			boolean = other.boolean;
 			string = other.string;
 			array = other.array;
@@ -664,22 +687,47 @@ namespace Irrelon {
 		}
 
 		bool operator== (const int other) const {
-			if (type == DynaValType::Int) return numberInteger == other;
-			if (type == DynaValType::Uint) return numberUnsignedInteger == static_cast<u_int>(other);
-			if (type == DynaValType::Float) return numberFloat == static_cast<float>(other);
+			if (type == DynaValType::Int) return static_cast<int>(number) == static_cast<int>(other);
+			if (type == DynaValType::UInt) return static_cast<u_int>(number) == static_cast<u_int>(other);
+			if (type == DynaValType::Float) return static_cast<float>(number) == static_cast<float>(other);
+			if (type == DynaValType::Double) return static_cast<double>(number) == static_cast<double>(other);
+			if (type == DynaValType::Long) return static_cast<long>(number) == static_cast<long>(other);
 			return false;
 		}
 
 		bool operator== (const u_int other) const {
-			if (type == DynaValType::Uint) return numberUnsignedInteger == other;
-			if (type == DynaValType::Int) return numberInteger == static_cast<int>(other);
-			if (type == DynaValType::Float) return numberFloat == static_cast<float>(other);
+			if (type == DynaValType::Int) return static_cast<int>(number) == static_cast<int>(other);
+			if (type == DynaValType::UInt) return static_cast<u_int>(number) == static_cast<u_int>(other);
+			if (type == DynaValType::Float) return static_cast<float>(number) == static_cast<float>(other);
+			if (type == DynaValType::Double) return static_cast<double>(number) == static_cast<double>(other);
+			if (type == DynaValType::Long) return static_cast<long>(number) == static_cast<long>(other);
 			return false;
 		}
 
 		bool operator== (const float other) const {
-			if (type == DynaValType::Float) return numberFloat == other;
-			if (type == DynaValType::Int) return static_cast<float>(numberInteger) == other;
+			if (type == DynaValType::Int) return static_cast<int>(number) == static_cast<int>(other);
+			if (type == DynaValType::UInt) return static_cast<u_int>(number) == static_cast<u_int>(other);
+			if (type == DynaValType::Float) return static_cast<float>(number) == static_cast<float>(other);
+			if (type == DynaValType::Double) return static_cast<double>(number) == static_cast<double>(other);
+			if (type == DynaValType::Long) return static_cast<long>(number) == static_cast<long>(other);
+			return false;
+		}
+
+		bool operator== (const double other) const {
+			if (type == DynaValType::Int) return static_cast<int>(number) == static_cast<int>(other);
+			if (type == DynaValType::UInt) return static_cast<u_int>(number) == static_cast<u_int>(other);
+			if (type == DynaValType::Float) return static_cast<float>(number) == static_cast<float>(other);
+			if (type == DynaValType::Double) return static_cast<double>(number) == static_cast<double>(other);
+			if (type == DynaValType::Long) return static_cast<long>(number) == static_cast<long>(other);
+			return false;
+		}
+
+		bool operator== (const long other) const {
+			if (type == DynaValType::Int) return static_cast<int>(number) == static_cast<int>(other);
+			if (type == DynaValType::UInt) return static_cast<u_int>(number) == static_cast<u_int>(other);
+			if (type == DynaValType::Float) return static_cast<float>(number) == static_cast<float>(other);
+			if (type == DynaValType::Double) return static_cast<double>(number) == static_cast<double>(other);
+			if (type == DynaValType::Long) return static_cast<long>(number) == static_cast<long>(other);
 			return false;
 		}
 
@@ -694,13 +742,17 @@ namespace Irrelon {
 				case DynaValType::Undefined:
 					return other.type == DynaValType::Undefined;
 				case DynaValType::Int:
-					if (other.type == DynaValType::Int) return numberInteger == other.numberInteger;
-					if (other.type == DynaValType::Uint) return numberInteger == static_cast<int>(other.numberUnsignedInteger);
-				case DynaValType::Uint:
-					if (other.type == DynaValType::Uint) return numberUnsignedInteger == other.numberUnsignedInteger;
-					if (other.type == DynaValType::Int) return numberUnsignedInteger == static_cast<u_int>(other.numberInteger);
+					if (other.type == DynaValType::Int) return number == other.number;
+					if (other.type == DynaValType::UInt) return number == static_cast<int>(other.number);
+				case DynaValType::UInt:
+					if (other.type == DynaValType::UInt) return number == other.number;
+					if (other.type == DynaValType::Int) return number == static_cast<u_int>(other.number);
 				case DynaValType::Float:
-					return numberFloat == other.numberFloat;
+					return number == other.number;
+				case DynaValType::Double:
+					return number == other.number;
+				case DynaValType::Long:
+					return number == other.number;
 				case DynaValType::Bool:
 					return boolean == other.boolean;
 				case DynaValType::String:
@@ -806,6 +858,8 @@ namespace Irrelon {
 			return array->back();
 		}
 
+		DynaVal &push (const double n) { return push(DynaVal(n)); }
+
 		DynaVal &push (const float n) { return push(DynaVal(n)); }
 
 		DynaVal &push (const int n) { return push(DynaVal(n)); }
@@ -829,13 +883,15 @@ namespace Irrelon {
 				case DynaValType::Null:
 					return DynaVal().becomeNull();
 				case DynaValType::Int:
-					return DynaVal(numberInteger);
-				case DynaValType::Uint:
-					return DynaVal(numberUnsignedInteger);
+					return DynaVal().becomeInt() = number;
+				case DynaValType::UInt:
+					return DynaVal().becomeUInt() = number;
 				case DynaValType::Float:
-					return DynaVal(numberFloat);
+					return DynaVal().becomeFloat() = number;
 				case DynaValType::Double:
-					return DynaVal(numberDouble);
+					return DynaVal().becomeDouble() = number;
+				case DynaValType::Long:
+					return DynaVal().becomeLong() = number;
 				case DynaValType::Bool:
 					return DynaVal(boolean);
 				case DynaValType::String:
@@ -905,13 +961,19 @@ namespace Irrelon {
 					out << "null";
 					break;
 				case DynaValType::Float:
-					out << numberFloat;
+					out << number;
 					break;
 				case DynaValType::Int:
-					out << numberInteger;
+					out << number;
 					break;
-				case DynaValType::Uint:
-					out << numberUnsignedInteger;
+				case DynaValType::UInt:
+					out << number;
+					break;
+				case DynaValType::Double:
+					out << number;
+					break;
+				case DynaValType::Long:
+					out << number;
 					break;
 				case DynaValType::Bool:
 					out << std::boolalpha << boolean;

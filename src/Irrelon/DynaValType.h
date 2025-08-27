@@ -3,14 +3,18 @@
 
 namespace Irrelon {
 	enum class DynaValType {
+		// Special types
 		Error,
 		Undefined,
 		Null,
 		Any,
+		// Numeric types
 		Int,
-		Uint,
+		UInt,
 		Float,
 		Double,
+		Long,
+		// Other types
 		Bool,
 		String,
 		Array,
@@ -24,8 +28,10 @@ namespace Irrelon {
 			case DynaValType::Null: return "null";
 			case DynaValType::Any: return "any";
 			case DynaValType::Int: return "int";
-			case DynaValType::Uint: return "u_int";
+			case DynaValType::UInt: return "u_int";
 			case DynaValType::Float: return "float";
+			case DynaValType::Double: return "double";
+			case DynaValType::Long: return "long";
 			case DynaValType::Bool: return "boolean";
 			case DynaValType::String: return "string";
 			case DynaValType::Array: return "array";
