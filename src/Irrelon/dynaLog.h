@@ -8,6 +8,10 @@
 #include <fmt/format.h>
 #endif
 
+#ifdef ARDUINO
+#include <Arduino.h>
+#endif
+
 #include "DynaVal.h"
 
 // Change these if you want different defaults.
