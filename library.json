@@ -1,6 +1,6 @@
 {
   "name": "DynaVal",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Dynamic value container with type safety and PSRAM-backed containers for ESP32.",
   "keywords": ["irrelon", "dynamic", "flexible", "container", "data", "esp32"],
   "repository": {

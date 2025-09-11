@@ -5,7 +5,45 @@
 // Define FMT_HEADER_ONLY before including <fmt/...> to avoid linking a .cpp.
 #ifndef FMT_HEADER_ONLY
 #define FMT_HEADER_ONLY
+#endif
+
+// If Arduino headers might be included before us, they may define B1..B8, etc.
+// Save & undef those macros around fmt includes to avoid collisions.
+#if defined(B0) || defined(B1) || defined(B2) || defined(B3) || defined(B4) || defined(B5) || defined(B6) || defined(B7) || defined(B8)
+  #pragma push_macro("B0")
+  #pragma push_macro("B1")
+  #pragma push_macro("B2")
+  #pragma push_macro("B3")
+  #pragma push_macro("B4")
+  #pragma push_macro("B5")
+  #pragma push_macro("B6")
+  #pragma push_macro("B7")
+  #pragma push_macro("B8")
+  #undef B0
+  #undef B1
+  #undef B2
+  #undef B3
+  #undef B4
+  #undef B5
+  #undef B6
+  #undef B7
+  #undef B8
+  #define DYNALOG_RESTORE_B_MACROS 1
+#endif
+
 #include <fmt/format.h>
+
+#ifdef DYNALOG_RESTORE_B_MACROS
+  #undef DYNALOG_RESTORE_B_MACROS
+  #pragma pop_macro("B8")
+  #pragma pop_macro("B7")
+  #pragma pop_macro("B6")
+  #pragma pop_macro("B5")
+  #pragma pop_macro("B4")
+  #pragma pop_macro("B3")
+  #pragma pop_macro("B2")
+  #pragma pop_macro("B1")
+  #pragma pop_macro("B0")
 #endif
 
 #ifdef ARDUINO
