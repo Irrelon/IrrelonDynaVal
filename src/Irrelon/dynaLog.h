@@ -131,12 +131,12 @@ namespace Irrelon {
 	}
 
 	template<typename... Args>
-	inline void dynaLogJoin(Args&&... args) {
+	inline void dynaLogLnJoin(Args&&... args) {
 		if (!dynaLogIsEnabled) return;
 		std::string msg;
 		msg.reserve(256);
 		(detail::append_piece(msg, std::forward<Args>(args)), ...);
-		dynaLogOutputRaw(msg);
+		dynaLogOutputRaw(msg, true);
 	}
 
 	inline void dynaLogLn(fmt::format_string<std::string_view> fmtstr, const Irrelon::DynaVal& v) {
@@ -149,19 +149,6 @@ namespace Irrelon {
 		if (!dynaLogIsEnabled) return;
 		const std::string s = v.toJson();
 		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), true);
-	}
-
-	// optional no-newline
-	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, const Irrelon::DynaVal& v) {
-		if (!dynaLogIsEnabled) return;
-		const std::string s = v.toJson();
-		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false, false, false);
-	}
-
-	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, Irrelon::DynaVal& v) {
-		if (!dynaLogIsEnabled) return;
-		const std::string s = v.toJson();
-		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false);
 	}
 
 	// ---- Public API: println-style ----
@@ -184,23 +171,44 @@ namespace Irrelon {
 		dynaLogOutputRaw(cstr ? std::string_view{cstr} : std::string_view{}, /*add_newline*/ true);
 	}
 
-	// ---- Public API: print-without-newline ----
+	template<typename... Args>
+	inline void dynaLogJoin(Args&&... args) {
+		if (!dynaLogIsEnabled) return;
+		std::string msg;
+		msg.reserve(256);
+		(detail::append_piece(msg, std::forward<Args>(args)), ...);
+		dynaLogOutputRaw(msg, false, false, false);
+	}
+
 	template<class... Args>
 	inline void dynaLog(fmt::format_string<Args...> fmtstr, Args &&... args) {
 		if (!dynaLogIsEnabled) return;
 		const std::string chunk = fmt::format(fmtstr, std::forward<Args>(args)...);
-		dynaLogOutputRaw(chunk, /*add_newline*/ false);
+		dynaLogOutputRaw(chunk, /*add_newline*/ false, false, false);
 	}
 
 	// Raw (no formatting)
 	inline void dynaLog(std::string_view msg) {
 		if (!dynaLogIsEnabled) return;
-		dynaLogOutputRaw(msg, /*add_newline*/ false);
+		dynaLogOutputRaw(msg, /*add_newline*/ false, false, false);
 	}
 
 	inline void dynaLog(const char *cstr) {
 		if (!dynaLogIsEnabled) return;
-		dynaLogOutputRaw(cstr ? std::string_view{cstr} : std::string_view{}, /*add_newline*/ false);
+		dynaLogOutputRaw(cstr ? std::string_view{cstr} : std::string_view{}, /*add_newline*/ false, false, false);
+	}
+
+	// optional no-newline
+	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, const Irrelon::DynaVal& v) {
+		if (!dynaLogIsEnabled) return;
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false, false, false);
+	}
+
+	inline void dynaLog(fmt::format_string<std::string_view> fmtstr, Irrelon::DynaVal& v) {
+		if (!dynaLogIsEnabled) return;
+		const std::string s = v.toJson();
+		dynaLogOutputRaw(fmt::format(fmtstr, std::string_view{s}), false, false, false);
 	}
 
 	inline void dynaLogPrintIndent() {
